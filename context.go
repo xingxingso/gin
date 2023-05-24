@@ -3,7 +3,7 @@ package gin
 import (
 	"net/http"
 
-	"github.com/xingxingso/gin_start/gin/binding"
+	"github.com/xingxingso/gin/binding"
 )
 
 const (
