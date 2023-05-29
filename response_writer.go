@@ -17,6 +17,9 @@ type ResponseWriter interface {
 
 	// Status returns the HTTP response status code of the current request.
 	Status() int
+
+	// WriteHeaderNow forces to write the http header (status code + headers).
+	WriteHeaderNow()
 }
 
 type responseWriter struct {

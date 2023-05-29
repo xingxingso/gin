@@ -1,9 +1,23 @@
 package gin
 
-import "os"
+import (
+	"os"
+	"reflect"
+	"runtime"
+)
 
 // H is a shortcut for map[string]any
 type H map[string]any
+
+func assert1(guard bool, text string) {
+	if !guard {
+		panic(text)
+	}
+}
+
+func nameOfFunction(f any) string {
+	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+}
 
 func resolveAddress(addr []string) string {
 	switch len(addr) {

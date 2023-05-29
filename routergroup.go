@@ -42,7 +42,7 @@ type IRoutes interface {
 type RouterGroup struct {
 	//Handlers HandlersChain
 	//basePath string
-	//engine   *Engine
+	engine *Engine
 	//root     bool
 }
 
@@ -51,7 +51,8 @@ var _ IRouter = (*RouterGroup)(nil)
 func (group *RouterGroup) handle(httpMethod, relativePath string, handlers HandlersChain) IRoutes {
 	//absolutePath := group.calculateAbsolutePath(relativePath)
 	//handlers = group.combineHandlers(handlers)
-	//group.engine.addRoute(httpMethod, absolutePath, handlers)
+	absolutePath := relativePath //todo support relative path
+	group.engine.addRoute(httpMethod, absolutePath, handlers)
 	return group.returnObj()
 }
 

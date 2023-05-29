@@ -16,12 +16,21 @@ type HandlerFunc func(*Context)
 // HandlersChain defines a HandlerFunc slice.
 type HandlersChain []HandlerFunc
 
+// Last returns the last handler in the chain. i.e. the last handler is the main one.
+func (c HandlersChain) Last() HandlerFunc {
+	if length := len(c); length > 0 {
+		return c[length-1]
+	}
+	return nil
+}
+
 // Engine is the framework's instance, it contains the muxer, middleware and configuration settings.
 // Create an instance of Engine, by using New() or Default()
 type Engine struct {
 	RouterGroup
 
 	pool      sync.Pool
+	trees     methodTrees
 	maxParams uint16
 }
 
@@ -33,8 +42,13 @@ type Engine struct {
 // - ForwardedByClientIP:    true
 // - UseRawPath:             false
 // - UnescapePathValues:     true
-func New() *Engine { // todo
-	engine := &Engine{}
+func New() *Engine {
+	debugPrintWARNINGNew()
+	engine := &Engine{
+		RouterGroup: RouterGroup{},
+		trees:       make(methodTrees, 0, 9),
+	}
+	engine.RouterGroup.engine = engine
 	engine.pool.New = func() any {
 		return engine.allocateContext(engine.maxParams)
 	}
@@ -43,6 +57,7 @@ func New() *Engine { // todo
 
 // Default returns an Engine instance with the Logger and Recovery middleware already attached.
 func Default() *Engine {
+	debugPrintWARNINGDefault()
 	engine := New()
 	return engine
 }
@@ -52,7 +67,26 @@ func (engine *Engine) Handler() http.Handler {
 }
 
 func (engine *Engine) allocateContext(maxParams uint16) *Context {
-	return &Context{}
+	v := make(Params, 0, maxParams)
+	return &Context{params: &v}
+}
+
+func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
+	assert1(path[0] == '/', "path must begin with '/'")
+	assert1(method != "", "HTTP method can not be empty")
+	assert1(len(handlers) > 0, "there must be at least one handler")
+
+	debugPrintRoute(method, path, handlers)
+
+	root := engine.trees.get(method)
+	if root == nil {
+		root = new(node)
+		root.fullPath = "/"
+		engine.trees = append(engine.trees, methodTree{method: method, root: root})
+	}
+	root.addRoute(path, handlers)
+
+	// Update maxParams
 }
 
 // Run attaches the router to a http.Server and starts listening and serving HTTP requests.
@@ -77,61 +111,31 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (engine *Engine) handleHTTPRequest(c *Context) {
-	//httpMethod := c.Request.Method
-	//rPath := c.Request.URL.Path
-	//unescape := false
-	//if engine.UseRawPath && len(c.Request.URL.RawPath) > 0 {
-	//	rPath = c.Request.URL.RawPath
-	//	unescape = engine.UnescapePathValues
-	//}
+	httpMethod := c.Request.Method
+	rPath := c.Request.URL.Path
 
-	//if engine.RemoveExtraSlash {
-	//	rPath = cleanPath(rPath)
-	//}
+	//Find root of the tree for the given HTTP method
+	t := engine.trees
+	for i, tl := 0, len(t); i < tl; i++ {
+		if t[i].method != httpMethod {
+			continue
+		}
+		root := t[i].root
+		// Find route in tree
+		value := root.getValue(rPath, c.params)
+		if value.params != nil {
+			c.Params = *value.params
+		}
+		if value.handlers != nil {
+			c.handlers = value.handlers
+			c.fullPath = value.fullPath
+			c.Next()
+			c.writermem.WriteHeaderNow()
+			return
+		}
+		break
+	}
 
-	// Find root of the tree for the given HTTP method
-	//t := engine.trees
-	//for i, tl := 0, len(t); i < tl; i++ {
-	//	if t[i].method != httpMethod {
-	//		continue
-	//	}
-	//	root := t[i].root
-	//	// Find route in tree
-	//	value := root.getValue(rPath, c.params, c.skippedNodes, unescape)
-	//	if value.params != nil {
-	//		c.Params = *value.params
-	//	}
-	//	if value.handlers != nil {
-	//		c.handlers = value.handlers
-	//		c.fullPath = value.fullPath
-	//		c.Next()
-	//		c.writermem.WriteHeaderNow()
-	//		return
-	//	}
-	//	if httpMethod != http.MethodConnect && rPath != "/" {
-	//		if value.tsr && engine.RedirectTrailingSlash {
-	//			redirectTrailingSlash(c)
-	//			return
-	//		}
-	//		if engine.RedirectFixedPath && redirectFixedPath(c, root, engine.RedirectFixedPath) {
-	//			return
-	//		}
-	//	}
-	//	break
-	//}
-
-	//if engine.HandleMethodNotAllowed {
-	//	for _, tree := range engine.trees {
-	//		if tree.method == httpMethod {
-	//			continue
-	//		}
-	//		if value := tree.root.getValue(rPath, nil, c.skippedNodes, unescape); value.handlers != nil {
-	//			c.handlers = engine.allNoMethod
-	//			serveError(c, http.StatusMethodNotAllowed, default405Body)
-	//			return
-	//		}
-	//	}
-	//}
 	//c.handlers = engine.allNoRoute
 	serveError(c, http.StatusNotFound, default404Body)
 }
