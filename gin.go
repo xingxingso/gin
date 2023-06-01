@@ -1,6 +1,7 @@
 package gin
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 )
@@ -86,7 +87,10 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 	}
 	root.addRoute(path, handlers)
 
+	printTree(engine.trees)
+
 	// Update maxParams
+
 }
 
 // Run attaches the router to a http.Server and starts listening and serving HTTP requests.
@@ -123,6 +127,9 @@ func (engine *Engine) handleHTTPRequest(c *Context) {
 		root := t[i].root
 		// Find route in tree
 		value := root.getValue(rPath, c.params)
+
+		debugPrint("rPath: %s, value.handlers: %v", rPath, value.handlers)
+
 		if value.params != nil {
 			c.Params = *value.params
 		}
@@ -157,4 +164,23 @@ func serveError(c *Context, code int, defaultMessage []byte) {
 		return
 	}
 	c.writermem.WriteHeaderNow()
+}
+
+func printTree(tree methodTrees) {
+	fmt.Println("printTree---------------------------")
+
+	var printNode func([]*node)
+
+	printNode = func(nodes []*node) {
+		for _, n := range nodes {
+			fmt.Printf("path: %s, fullPath: %s, indices: %s\n", n.path, n.fullPath, n.indices)
+			printNode(n.children)
+		}
+	}
+
+	for _, t := range tree {
+		fmt.Printf("method: %v\n", t.method)
+		fmt.Printf("path: %s, fullPath: %s, indices: %s\n", t.root.path, t.root.fullPath, t.root.indices)
+		printNode(t.root.children)
+	}
 }
