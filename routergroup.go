@@ -8,6 +8,13 @@ import (
 var (
 	// regEnLetter matches english letters for http method name
 	regEnLetter = regexp.MustCompile("^[A-Z]+$")
+
+	// anyMethods for RouterGroup Any method
+	anyMethods = []string{
+		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch,
+		http.MethodHead, http.MethodOptions, http.MethodDelete, http.MethodConnect,
+		http.MethodTrace,
+	}
 )
 
 // IRouter defines all router handle interface includes single and group router.
@@ -73,9 +80,49 @@ func (group *RouterGroup) Handle(httpMethod, relativePath string, handlers ...Ha
 	return group.handle(httpMethod, relativePath, handlers)
 }
 
+// POST is a shortcut for router.Handle("POST", path, handlers).
+func (group *RouterGroup) POST(relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(http.MethodPost, relativePath, handlers)
+}
+
 // GET is a shortcut for router.Handle("GET", path, handlers).
 func (group *RouterGroup) GET(relativePath string, handlers ...HandlerFunc) IRoutes {
 	return group.handle(http.MethodGet, relativePath, handlers)
+}
+
+// DELETE is a shortcut for router.Handle("DELETE", path, handlers).
+func (group *RouterGroup) DELETE(relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(http.MethodDelete, relativePath, handlers)
+}
+
+// PATCH is a shortcut for router.Handle("PATCH", path, handlers).
+func (group *RouterGroup) PATCH(relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(http.MethodPatch, relativePath, handlers)
+}
+
+// PUT is a shortcut for router.Handle("PUT", path, handlers).
+func (group *RouterGroup) PUT(relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(http.MethodPut, relativePath, handlers)
+}
+
+// OPTIONS is a shortcut for router.Handle("OPTIONS", path, handlers).
+func (group *RouterGroup) OPTIONS(relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(http.MethodOptions, relativePath, handlers)
+}
+
+// HEAD is a shortcut for router.Handle("HEAD", path, handlers).
+func (group *RouterGroup) HEAD(relativePath string, handlers ...HandlerFunc) IRoutes {
+	return group.handle(http.MethodHead, relativePath, handlers)
+}
+
+// Any registers a route that matches all the HTTP methods.
+// GET, POST, PUT, PATCH, HEAD, OPTIONS, DELETE, CONNECT, TRACE.
+func (group *RouterGroup) Any(relativePath string, handlers ...HandlerFunc) IRoutes {
+	for _, method := range anyMethods {
+		group.handle(method, relativePath, handlers)
+	}
+
+	return group.returnObj()
 }
 
 func (group *RouterGroup) returnObj() IRoutes {

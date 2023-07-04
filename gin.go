@@ -128,8 +128,6 @@ func (engine *Engine) handleHTTPRequest(c *Context) {
 		// Find route in tree
 		value := root.getValue(rPath, c.params)
 
-		debugPrint("rPath: %s, value.handlers: %v", rPath, value.handlers)
-
 		if value.params != nil {
 			c.Params = *value.params
 		}
